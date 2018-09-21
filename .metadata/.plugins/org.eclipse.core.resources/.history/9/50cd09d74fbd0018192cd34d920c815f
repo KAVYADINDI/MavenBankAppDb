@@ -1,14 +1,8 @@
 package com.capgemini.bankApp.service.impl;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.capgemini.bankApp.dbutil.DbUtil;
 import com.capgemini.bankApp.exceptions.LowBalanceException;
 import com.capgemini.bankApp.repository.BankAccountRepository;
 import com.capgemini.bankApp.service.BankAccountService;
@@ -16,8 +10,6 @@ import com.capgemini.bankApp.service.BankAccountService;
 public class BankAccountServiceImpl implements BankAccountService {
 	@Autowired
 	private BankAccountRepository bankAccountRepository;
-	@Autowired
-	DbUtil dbUtil;
 
 //	public void setBankAccountRepository(BankAccountRepository bankAccountRepository) {
 //		this.bankAccountRepository = bankAccountRepository;
@@ -59,20 +51,13 @@ public class BankAccountServiceImpl implements BankAccountService {
 
 	@Override
 	public boolean fundTransfer(long fromAccount, long toAccount, double amount) throws LowBalanceException {
-		String query = "select accountId from customers where accountId =?";
-		try (Connection connection = dbUtil.getConnection();
-				PreparedStatement statement = connection.prepareStatement(query)) {
-			statement.setInt(1, (int) toAccount);
-			ResultSet result = statement.executeQuery();
-			if (result.next()) {
-				if (withdraw(fromAccount, amount) >= 0) {
-					deposit(toAccount, amount);
-					return true;
-				}
+		double balance = withdraw(fromAccount, amount);
+		if (balance >= 0) {
+			if (deposit(toAccount, amount) == -1) {
+				deposit(fromAccount, amount);
+				return false;
 			}
-
-		} catch (SQLException e) {
-			e.printStackTrace();
+			return true;
 		}
 		return false;
 	}
